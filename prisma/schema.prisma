@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects    Project[]       @relation("UserProjects")
+  tasks       Task[]          @relation("UserTasks")
+  memberships ProjectMember[] @relation("UserProjectMemberships")
+  taskMembers TaskMember[]    @relation("UserTaskMemberships")
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User            @relation("UserProjects", fields: [ownerId], references: [id])
+  tasks       Task[]          @relation("ProjectTasks")
+  members     ProjectMember[] @relation("ProjectMemberships")
+  taskMembers TaskMember[]    @relation("ProjectTaskMemberships")
+
+  @@map("projects")
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  creatorId   String
+  projectId   String
+  status      TaskStatus @default(TODO)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  creator     User         @relation("UserTasks", fields: [creatorId], references: [id])
+  project     Project      @relation("ProjectTasks", fields: [projectId], references: [id])
+  taskMembers TaskMember[] @relation("TaskMemberships")
+
+  @@map("tasks")
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+
+  project Project @relation("ProjectMemberships", fields: [projectId], references: [id])
+  user    User    @relation("UserProjectMemberships", fields: [userId], references: [id])
+
+  @@id([projectId, userId])
+  @@map("project_members")
+}
+
+model TaskMember {
+  taskId    String
+  userId    String
+  projectId String
+
+  task    Task    @relation("TaskMemberships", fields: [taskId], references: [id])
+  user    User    @relation("UserTaskMemberships", fields: [userId], references: [id])
+  project Project @relation("ProjectTaskMemberships", fields: [projectId], references: [id])
+
+  @@id([taskId, userId, projectId])
+  @@map("task_members")
+}
+
+enum Role {
+  ADMIN
+  USER
+  MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  FINISHED
+}
